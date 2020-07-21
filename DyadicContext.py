@@ -10,10 +10,11 @@ class DyadicContext:
         self.concepts = {}
         self.concepts_reverse = {}
         self.links = []
+        self.generators = {}
 
     # Save dyadic context into file
     def save(self, file_path):
-        file = open(file_path, "w")
+        file = open(file_path, "w", encoding='utf-8')
 
         for obj, attrs in self.context.items():
             file.write(obj + " ")
@@ -32,7 +33,7 @@ class DyadicContext:
 
     # Read concepts from file
     def read_concepts_from_file(self, file_name):
-        file = open(file_name, 'r')
+        file = open(file_name, 'r', encoding='utf-8')
 
         self.concepts = {}
         self.concepts_reverse = {}
@@ -82,9 +83,96 @@ class DyadicContext:
 
         self.links = links
 
+    # Find superior concepts for an intent's set
+    def find_superior_concepts(self, intent_set):
+        linked = []
+
+        for link in self.links:
+            if intent_set == link[0] or intent_set == link[1]:
+                linked.append(link)
+
+        concepts = []
+        intent_len = len(self.concepts_reverse[frozenset(intent_set)])
+
+        for link in linked:
+            if link[0] == intent_set and frozenset(link[1]) in self.concepts_reverse:
+                if len(self.concepts_reverse[frozenset(link[1])]) > intent_len:
+                    concepts.append(link[1])
+
+            if link[1] == intent_set and frozenset(link[0]) in self.concepts_reverse:
+                if len(self.concepts_reverse[frozenset(link[0])]) > intent_len:
+                    concepts.append(link[0])
+
+        return concepts
+
+    # Find all objects that contains one intent's set
+    def derive_attributes(self, attributes):
+        extent_set = frozenset({})
+
+        for extent, intent in self.concepts.items():
+            if attributes <= intent:
+                extent_set |= extent
+
+        if 'ø' in extent_set:
+            extent_set -= {'ø'}
+        return extent_set
+
+    # update generators for single concept
+    def update_feature_generators(self, concept, sup_intent):
+        face = concept['attributes'] - sup_intent
+
+        if concept['attributes'] not in self.generators:
+            self.generators[concept['attributes']] = [frozenset({f}) for f in face]
+        else:
+            new_gen = []
+            diff_gen = []
+            for g in self.generators[concept['attributes']]:
+                if len(g & face) != 0:
+                    new_gen.append(g)
+                else:
+                    diff_gen.append(g)
+
+            keep_gen = new_gen.copy()
+
+            if len(diff_gen) == 0:
+                diff_gen.append(frozenset({}))
+
+            for g in diff_gen:
+                for element in face:
+                    keep = True
+                    g_sup = g | frozenset({element})
+                    for keep_set in keep_gen:
+                        if keep_set <= g_sup:
+                            keep = False
+                            break
+                    if keep:
+                        new_gen.append(g_sup)
+
+                self.generators[concept['attributes']] = new_gen
+
+    # Compute feature generators for context concepts
+    def compute_feature_generators(self):
+        first_concept = True
+        for extent, intent in self.concepts.items():
+            if first_concept:
+                self.generators[intent] = [frozenset({i}) for i in intent]
+                first_concept = False
+            else:
+                sup_concepts = self.find_superior_concepts(intent)
+                for concept in sup_concepts:
+                    self.update_feature_generators({'objects': extent, 'attributes': intent}, concept)
+
+        for concept_intent, concept_generators in self.generators.items():
+            final_generators_set = []
+            for g in concept_generators:
+                if self.derive_attributes(g) == self.concepts_reverse[concept_intent]:
+                    final_generators_set.append(g)
+
+            self.generators[concept_intent] = final_generators_set
+
     # Save concepts links into file
     def save_links(self, file_path):
-        file = open(file_path, 'w')
+        file = open(file_path, 'w', encoding='utf-8')
 
         for link in self.links:
             if frozenset(link[0]) in self.concepts_reverse.keys() and frozenset(
@@ -113,3 +201,7 @@ class DyadicContext:
     def show_links_count(self):
         print('{0} links found between concepts'.format(len(self.links)))
 
+    # Shows the generators count
+    def show_generators_count(self):
+        gen_count = sum(len(g) for g in self.generators)
+        print('{0} generators found'.format(gen_count))

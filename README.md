@@ -24,6 +24,5 @@ The project was developed by Raul F. Mansur, oriented by Pedro H. B. Ruas and Ma
 4) Run `python triadic_miner.py`
 
 ### Todo:
-* Feature Generators;
 * Association Rules;
 

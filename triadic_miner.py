@@ -19,7 +19,7 @@ def main():
     Timer.stop()
 
     Timer.start('Generating concepts: {0} -> {1}'.format(configs.dyadic_file, configs.concepts_file))
-    dyadic_context.mine_concepts(configs.dyadic_file, configs.concepts_file)
+    # dyadic_context.mine_concepts(configs.dyadic_file, configs.concepts_file)
     dyadic_context.read_concepts_from_file(configs.concepts_file)
     dyadic_context.show_concepts_count()
     Timer.stop()
@@ -28,6 +28,11 @@ def main():
     dyadic_context.iPred()
     dyadic_context.save_links(configs.links_file)
     dyadic_context.show_links_count()
+    Timer.stop()
+
+    Timer.start('Computing feature generators')
+    dyadic_context.compute_feature_generators()
+    dyadic_context.show_generators_count()
     Timer.stop()
 
 
