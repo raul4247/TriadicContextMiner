@@ -11,6 +11,7 @@ class DyadicContext:
         self.concepts_reverse = {}
         self.links = []
         self.generators = {}
+        self.rules = []
 
     # Save dyadic context into file
     def save(self, file_path):
@@ -85,11 +86,7 @@ class DyadicContext:
 
     # Find superior concepts for an intent's set
     def find_superior_concepts(self, intent_set):
-        linked = []
-
-        for link in self.links:
-            if intent_set == link[0] or intent_set == link[1]:
-                linked.append(link)
+        linked = [link for link in self.links if intent_set == link[0] or intent_set == link[1]]
 
         concepts = []
         intent_len = len(self.concepts_reverse[frozenset(intent_set)])
@@ -101,6 +98,24 @@ class DyadicContext:
 
             if link[1] == intent_set and frozenset(link[0]) in self.concepts_reverse:
                 if len(self.concepts_reverse[frozenset(link[0])]) > intent_len:
+                    concepts.append(link[0])
+
+        return concepts
+
+    # Find inferior concepts for an intent's set
+    def find_inferior_concepts(self, intent_set):
+        linked = [link for link in self.links if intent_set == link[0] or intent_set == link[1]]
+
+        concepts = []
+        intent_len = len(self.concepts_reverse[frozenset(intent_set)])
+
+        for link in linked:
+            if link[0] == intent_set and frozenset(link[1]) in self.concepts_reverse:
+                if len(self.concepts_reverse[frozenset(link[1])]) < intent_len:
+                    concepts.append(link[1])
+
+            if link[1] == intent_set and frozenset(link[0]) in self.concepts_reverse:
+                if len(self.concepts_reverse[frozenset(link[0])]) < intent_len:
                     concepts.append(link[0])
 
         return concepts
@@ -170,6 +185,40 @@ class DyadicContext:
 
             self.generators[concept_intent] = final_generators_set
 
+    # Compute the association rules
+    def compute_association_rules(self):
+        rules = []
+        for concept_extent, concept_intent in self.concepts.items():
+            if concept_intent in self.generators:
+
+                ant_support = len(concept_extent) / self.objects_count
+                children = self.find_inferior_concepts(concept_intent)
+
+                for g in self.generators[concept_intent]:
+                    if len(children) != 0 and len(concept_intent) != 0:
+                        for child_intent in children:
+                            child_extent = self.concepts_reverse[child_intent]
+                            cons_support = len(child_extent) / self.objects_count
+
+                            potential_cons = [i for i in child_intent if i not in concept_intent]
+
+                            rule_conf = cons_support / ant_support
+
+                            if len(potential_cons) != 0:
+                                rule = {"generator": g, "potential_cons": potential_cons, "support": cons_support,
+                                        "confidence": rule_conf}
+                                rules.append(rule)
+
+                    rule_support = len(concept_extent) / self.objects_count
+                    potential_cons = [i for i in concept_intent if i not in g]
+
+                    if len(potential_cons) != 0:
+                        rule = {"generator": g, "potential_cons": potential_cons, "support": rule_support,
+                                "confidence": 1.0}
+                        rules.append(rule)
+
+        self.rules = rules
+
     # Save concepts links into file
     def save_links(self, file_path):
         file = open(file_path, 'w', encoding='utf-8')
@@ -205,3 +254,7 @@ class DyadicContext:
     def show_generators_count(self):
         gen_count = sum(len(g) for g in self.generators)
         print('{0} generators found'.format(gen_count))
+
+    # Shows the rules count
+    def show_rules_count(self):
+        print('{0} rules computed'.format(len(self.rules)))
