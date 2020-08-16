@@ -14,7 +14,7 @@ class MyTestCase(unittest.TestCase):
 
         context, objects_count, attributes_count = TriadicContext.to_dyadic(triadic_context)
         cls.dyadic_context = DyadicContext(context, objects_count, attributes_count)
-        cls.dyadic_context.save(configs.dyadic_file)
+        cls.dyadic_context.save_context(configs.dyadic_file)
 
         # dyadic_context.mine_concepts(configs.dyadic_file, configs.concepts_file)
         cls.dyadic_context.read_concepts_from_file(configs.concepts_file)

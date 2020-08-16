@@ -15,7 +15,7 @@ class DyadicContext:
         self.rules = []
 
     # Save dyadic context into file
-    def save(self, file_path):
+    def save_context(self, file_path):
         file = open(file_path, "w", encoding='utf-8')
 
         for obj, attrs in self.context.items():
@@ -305,6 +305,29 @@ class DyadicContext:
                     file.write(str(i) + ' ')
 
                 file.write('\n')
+
+        file.close()
+
+    # Save generators into file
+    def save_generators(self, file_path):
+        file = open(file_path, 'w', encoding='utf-8')
+
+        for intent, generator in self.generators.items():
+            file.write(
+                str([set(i) for i in self.concepts_reverse[intent]]) + ' -> ' + str([set(i) for i in generator]) + '\n')
+
+        file.close()
+
+    # Save concepts links into file
+    def save_rules(self, file_path):
+        file = open(file_path, 'w', encoding='utf-8')
+
+        for rule in self.rules:
+            file.write(str([set(i) for i in rule['generator']]) + ' ->' + str(
+                [set(i) for i in rule['potential_cons']]) + '\n')
+            file.write('Support: {0}\t Confidence: {1}\n\n'.format(rule['support'], rule['confidence']))
+
+        file.close()
 
     # Shows the context size
     def show_size(self):

@@ -1,0 +1,6 @@
+{
+  "input_files": [
+    "inputs/example.data"
+  ],
+  "output_dir": "miner_output/"
+}
