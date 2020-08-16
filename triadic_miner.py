@@ -35,10 +35,10 @@ def main():
     dyadic_context.show_generators_count()
     Timer.stop()
 
-    Timer.start('Computing association rules')
-    dyadic_context.compute_association_rules()
-    dyadic_context.show_rules_count()
-    Timer.stop()
+    # Timer.start('Computing association rules')
+    # dyadic_context.compute_association_rules()
+    # dyadic_context.show_rules_count()
+    # Timer.stop()
 
 
 if __name__ == "__main__":

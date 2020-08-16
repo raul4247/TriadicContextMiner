@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+from tqdm import tqdm
 
 
 class DyadicContext:
@@ -65,7 +66,7 @@ class DyadicContext:
 
         border = attributes.pop(0)
 
-        for Ci in attributes:
+        for Ci in tqdm(attributes):
             candidates = set({})
 
             for element in border:
@@ -91,14 +92,21 @@ class DyadicContext:
         concepts = []
         intent_len = len(self.concepts_reverse[frozenset(intent_set)])
 
-        for link in linked:
-            if link[0] == intent_set and frozenset(link[1]) in self.concepts_reverse:
-                if len(self.concepts_reverse[frozenset(link[1])]) > intent_len:
+        if self.concepts_reverse[frozenset(intent_set)] == frozenset({'ø'}):
+            for link in linked:
+                if link[0] == intent_set and frozenset(link[1]) in self.concepts_reverse:
                     concepts.append(link[1])
-
-            if link[1] == intent_set and frozenset(link[0]) in self.concepts_reverse:
-                if len(self.concepts_reverse[frozenset(link[0])]) > intent_len:
+                if link[1] == intent_set and frozenset(link[0]) in self.concepts_reverse:
                     concepts.append(link[0])
+        else:
+            for link in linked:
+                if link[0] == intent_set and frozenset(link[1]) in self.concepts_reverse:
+                    if len(self.concepts_reverse[frozenset(link[1])]) > intent_len:
+                        concepts.append(link[1])
+
+                if link[1] == intent_set and frozenset(link[0]) in self.concepts_reverse:
+                    if len(self.concepts_reverse[frozenset(link[0])]) > intent_len:
+                        concepts.append(link[0])
 
         return concepts
 
@@ -168,7 +176,7 @@ class DyadicContext:
     # Compute feature generators for context concepts
     def compute_feature_generators(self):
         first_concept = True
-        for extent, intent in self.concepts.items():
+        for extent, intent in tqdm(self.concepts.items()):
             if first_concept:
                 self.generators[intent] = [frozenset({i}) for i in intent]
                 first_concept = False
@@ -177,18 +185,79 @@ class DyadicContext:
                 for concept in sup_concepts:
                     self.update_feature_generators({'objects': extent, 'attributes': intent}, concept)
 
-        for concept_intent, concept_generators in self.generators.items():
+        for concept_intent, concept_generators in tqdm(self.generators.items()):
             final_generators_set = []
+
             for g in concept_generators:
                 if self.derive_attributes(g) == self.concepts_reverse[concept_intent]:
                     final_generators_set.append(g)
-
+                if len(self.derive_attributes(g)) == 0 and self.concepts_reverse[
+                    frozenset(concept_intent)] == frozenset({'ø'}):
+                    final_generators_set.append(g)
             self.generators[concept_intent] = final_generators_set
+
+    # Lattice Miner Implementation
+    def LM_update_feature_generators(self, concept):
+        generators = []
+
+        if len(concept['attributes']) > 0:
+            parents_intents = self.find_superior_concepts(concept['attributes'])
+            faces = []
+            for i in parents_intents:
+                faces.append(concept['attributes'] - i)
+
+            if len(faces) > 0:
+                first_face = faces.pop(0)
+                for f in first_face:
+                    generators.append(frozenset({f}))
+
+                if len(faces) > 0:
+                    for f in faces:
+                        min_blockers = []
+                        blockers = []
+
+                        for g in generators:
+                            if len(g & f) == 0:
+                                for element in f:
+                                    union = frozenset({element}) | g
+                                    if union not in blockers:
+                                        blockers.append(union)
+                            else:
+                                if frozenset(g) not in min_blockers:
+                                    min_blockers.append(frozenset(g))
+
+                        if len(blockers) == 0:
+                            generators = min_blockers
+                        elif len(min_blockers) == 0:
+                            generators = blockers
+                        else:
+                            result = []
+                            for b in blockers:
+                                for min_b in min_blockers:
+                                    if min_b <= b:
+                                        if b not in result:
+                                            result.append(b)
+                                            break
+                            generators = list(frozenset(min_blockers) | (frozenset(blockers) - frozenset(result)))
+        else:
+            generators = frozenset([i for i in concept['attributes']])
+
+        return generators
+
+    # Lattice Miner Implementation
+    def LM_compute_feature_generators(self):
+        first_concept = True
+        for extent, intent in tqdm(self.concepts.items()):
+            if first_concept:
+                self.generators[intent] = [frozenset({i}) for i in intent]
+                first_concept = False
+            else:
+                self.generators[intent] = self.update_feature_generators({'objects': extent, 'attributes': intent})
 
     # Compute the association rules
     def compute_association_rules(self):
         rules = []
-        for concept_extent, concept_intent in self.concepts.items():
+        for concept_extent, concept_intent in tqdm(self.concepts.items()):
             if concept_intent in self.generators:
 
                 ant_support = len(concept_extent) / self.objects_count
