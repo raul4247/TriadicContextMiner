@@ -334,19 +334,25 @@ class DyadicContext:
         print('{0} Objects'.format(self.objects_count))
         print('{0} Attributes'.format(self.attributes_count))
 
+        return self.objects_count, self.attributes_count
+
     # Shows the concepts count
     def show_concepts_count(self):
         print('Mined {0} concepts'.format(len(self.concepts)))
+        return len(self.concepts)
 
     # Shows the links count
     def show_links_count(self):
         print('{0} links found between concepts'.format(len(self.links)))
+        return len(self.links)
 
     # Shows the generators count
     def show_generators_count(self):
         gen_count = sum(len(g) for g in self.generators)
         print('{0} generators found'.format(gen_count))
+        return gen_count
 
     # Shows the rules count
     def show_rules_count(self):
         print('{0} rules computed'.format(len(self.rules)))
+        return len(self.rules)

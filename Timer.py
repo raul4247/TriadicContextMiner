@@ -15,3 +15,5 @@ class Timer(object):
     def stop():
         elapsed_time = default_timer() - Timer.start_time
         print(Timer.DONE_MSG.format(elapsed_time))
+
+        return elapsed_time

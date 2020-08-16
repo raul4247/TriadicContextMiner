@@ -9,6 +9,9 @@ The code will read a triadic context input and then process its data in the foll
 2) Flat the context to a dyadic one
 3) Mine concepts using data-peeler
 4) Find links between concepts using iPred 
+4) Compute feature generators 
+4) Compute association rules 
+4) Save a report of the execution
 
 The project was developed by Raul F. Mansur, oriented by Pedro H. B. Ruas and Mark A. J. Song, all from Pontifícia Universidade Católica de Minas Gerais (PUC MG).
 
@@ -19,10 +22,7 @@ The project was developed by Raul F. Mansur, oriented by Pedro H. B. Ruas and Ma
 
 ### How to use:
 1) Build Data-Peeler's code and put the executable file in the root of the project
-2) Configure configs.py (or use the default values)
+2) Put input files and output dir on configs.json
 3) Run: `pip install -r requirements.txt`
 4) Run `python triadic_miner.py`
-
-### Todo:
-* Association Rules;
 

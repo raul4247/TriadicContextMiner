@@ -48,3 +48,5 @@ class TriadicContext(object):
         print('{0} Objects'.format(objects_len))
         print('{0} Attributes'.format(attributes_len))
         print('{0} Conditions'.format(conditions_len))
+
+        return objects_len, attributes_len, conditions_len
