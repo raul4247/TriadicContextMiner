@@ -44,7 +44,7 @@ def mine_file(input_file_path, dyadic_context_file_path, dyadic_concepts_file_pa
     dyadic_context.save_links(dyadic_links_file_path)
     time = Timer.stop()
     report.add_timed_section('Running iPred', time)
-    report.add_qt_section('Concepts count', links_count)
+    report.add_qt_section('Links count', links_count)
 
     Timer.start('Computing feature generators')
     dyadic_context.compute_feature_generators()

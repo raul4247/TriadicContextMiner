@@ -2,6 +2,8 @@
 import os
 from tqdm import tqdm
 
+from Concept2D import Concept2D
+
 
 class DyadicContext:
     def __init__(self, context, objects_count, attributes_count):
@@ -9,8 +11,10 @@ class DyadicContext:
         self.objects_count = objects_count
         self.attributes_count = attributes_count
         self.concepts = {}
+        self.concepts_lattice = {}
         self.concepts_reverse = {}
         self.links = []
+        self.links_count = 0
         self.generators = {}
         self.rules = []
 
@@ -47,8 +51,70 @@ class DyadicContext:
             self.concepts.update({obj: attr})
             self.concepts_reverse.update({attr: obj})
 
+    # Insert concept on lattice
+    def add_connection_on_lattice(self, intent_1, intent_2):
+        '''
+            se intent 1 existe e intent 2 não existe:
+                se intent_1 já está no lattice:
+                    pass
+                else
+                    add no latice um novo conceito com o intent 1
+
+            se intent 2 existe e intent 1 não existe:
+                se intent_2 já está no lattice:
+                    pass
+                else
+                    add no latice um novo conceito com o intent 2
+
+            se intent 1 existe e intent 2 existe:
+                se intent_1 e intent_2 já está no lattice:
+                    adiciona o link
+                se intent_2 ok e intent_1 não no lattice:
+                    cria o conecito 1, adiciona o link, e coloca o 1 no lattice
+                se intent_1 ok e intent_2 não no lattice:
+                    cria o conecito 2, adiciona o link, e coloca o 2 no lattice
+                se nenhum dos dois estiver no lattice:
+                    cria dois conecitos, adiciona o link, e coloca os dois no lattice
+        '''
+        intent_1 = frozenset(intent_1)
+        intent_2 = frozenset(intent_2)
+
+        if intent_1 in self.concepts_reverse and intent_2 not in self.concepts_reverse:
+            extent = self.concepts_reverse[intent_1]
+            if extent not in self.concepts_lattice:
+                self.concepts_lattice[extent] = Concept2D(extent, intent_1)
+
+        elif intent_2 in self.concepts_reverse and intent_1 not in self.concepts_reverse:
+            extent = self.concepts_reverse[intent_2]
+            if extent not in self.concepts_lattice:
+                self.concepts_lattice[extent] = Concept2D(extent, intent_2)
+
+        elif intent_2 in self.concepts_reverse and intent_1 in self.concepts_reverse:
+            extent_1 = self.concepts_reverse[intent_1]
+            extent_2 = self.concepts_reverse[intent_2]
+
+            if extent_1 in self.concepts_lattice and extent_2 in self.concepts_lattice:
+                self.concepts_lattice[extent_1].add_connection(self.concepts_lattice[extent_2])
+            elif extent_1 not in self.concepts_lattice and extent_2 in self.concepts_lattice:
+                c = Concept2D(extent_1, intent_1)
+                c.add_connection(self.concepts_lattice[extent_2])
+                self.concepts_lattice[extent_1] = c
+            elif extent_1 in self.concepts_lattice and extent_2 not in self.concepts_lattice:
+                c = Concept2D(extent_2, intent_2)
+                c.add_connection(self.concepts_lattice[extent_1])
+                self.concepts_lattice[extent_2] = c
+            else:
+                c1 = Concept2D(extent_1, intent_1)
+                c2 = Concept2D(extent_2, intent_2)
+                c1.add_connection(c2)
+                self.concepts_lattice[extent_1] = c1
+                self.concepts_lattice[extent_2] = c2
+
+            self.links_count += 1
+
     # Run iPred algorithm to mine links between concepts
     def iPred(self):
+        self.links_count = 0
         attributes = self.concepts.values()
         attributes = [i for i in attributes]
 
@@ -77,6 +143,7 @@ class DyadicContext:
             for element in candidates:
                 delta_intersection = Ci & faces[frozenset(element)]
                 if len(delta_intersection) == 0 or delta_intersection == empty_set:
+                    self.add_connection_on_lattice(Ci, set(element))
                     links.append([Ci, set(element)])
                     faces[frozenset(element)] = (faces[frozenset(element)] | (Ci - set(element))) - empty_set
                     border = (border - frozenset({element})) - empty_set
@@ -84,31 +151,6 @@ class DyadicContext:
             border = border | {Ci}
 
         self.links = links
-
-    # Find superior concepts for an intent's set
-    def find_superior_concepts(self, intent_set):
-        linked = [link for link in self.links if intent_set == link[0] or intent_set == link[1]]
-
-        concepts = []
-        intent_len = len(self.concepts_reverse[frozenset(intent_set)])
-
-        if self.concepts_reverse[frozenset(intent_set)] == frozenset({'ø'}):
-            for link in linked:
-                if link[0] == intent_set and frozenset(link[1]) in self.concepts_reverse:
-                    concepts.append(link[1])
-                if link[1] == intent_set and frozenset(link[0]) in self.concepts_reverse:
-                    concepts.append(link[0])
-        else:
-            for link in linked:
-                if link[0] == intent_set and frozenset(link[1]) in self.concepts_reverse:
-                    if len(self.concepts_reverse[frozenset(link[1])]) > intent_len:
-                        concepts.append(link[1])
-
-                if link[1] == intent_set and frozenset(link[0]) in self.concepts_reverse:
-                    if len(self.concepts_reverse[frozenset(link[0])]) > intent_len:
-                        concepts.append(link[0])
-
-        return concepts
 
     # Find inferior concepts for an intent's set
     def find_inferior_concepts(self, intent_set):
@@ -181,9 +223,9 @@ class DyadicContext:
                 self.generators[intent] = [frozenset({i}) for i in intent]
                 first_concept = False
             else:
-                sup_concepts = self.find_superior_concepts(intent)
+                sup_concepts = self.concepts_lattice[extent].parents
                 for concept in sup_concepts:
-                    self.update_feature_generators({'objects': extent, 'attributes': intent}, concept)
+                    self.update_feature_generators({'objects': extent, 'attributes': intent}, concept.intent)
 
         for concept_intent, concept_generators in tqdm(self.generators.items()):
             final_generators_set = []
@@ -261,15 +303,14 @@ class DyadicContext:
             if concept_intent in self.generators:
 
                 ant_support = len(concept_extent) / self.objects_count
-                children = self.find_inferior_concepts(concept_intent)
+                children = self.concepts_lattice[concept_extent].children
 
                 for g in self.generators[concept_intent]:
                     if len(children) != 0 and len(concept_intent) != 0:
-                        for child_intent in children:
-                            child_extent = self.concepts_reverse[child_intent]
-                            cons_support = len(child_extent) / self.objects_count
+                        for child in children:
+                            cons_support = len(child.extent) / self.objects_count
 
-                            potential_cons = [i for i in child_intent if i not in concept_intent]
+                            potential_cons = [i for i in child.intent if i not in concept_intent]
 
                             rule_conf = cons_support / ant_support
 
